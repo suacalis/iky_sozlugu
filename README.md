@@ -1,1 +1,1 @@
-# iky_sozlugu
+suacalis.github.io/iky_sozlugu adresinden ulaşabilirisiniz
