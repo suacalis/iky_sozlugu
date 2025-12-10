@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO 30400:2022 İK Sözlüğü (Optimize)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #334155;
+        }
+
+        /* --- 3D KART YAPISI --- */
+        
+        .flip-card {
+            background-color: transparent;
+            width: 100%;
+            height: 360px; /* Sabit yükseklik */
+            perspective: 1000px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: left;
+            transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+        }
+
+        /* DÖNME İŞLEMİ */
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+            -webkit-transform: rotateY(180deg);
+        }
+
+        /* YÜZEYLERİN ORTAK AYARLARI */
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            top: 0; 
+            left: 0;
+        }
+
+        /* --- ÖN YÜZ --- */
+        .flip-card-front {
+            color: white;
+            z-index: 2;
+            transform: rotateY(0deg);
+            -webkit-transform: rotateY(0deg);
+        }
+
+        /* --- ARKA YÜZ --- */
+        .flip-card-back {
+            background-color: #f8fafc;
+            color: #1e293b;
+            transform: rotateY(180deg);
+            -webkit-transform: rotateY(180deg);
+            z-index: 1;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Kart döndüğünde arka yüzün z-index'ini artır (Görünürlük Garantisi) */
+        .flip-card.flipped .flip-card-back {
+            z-index: 5;
+        }
+
+        /* İÇERİK KAYDIRMA (SCROLL) */
+        .card-content-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem;
+            /* Mobilde kaydırmayı iyileştir */
+            -webkit-overflow-scrolling: touch; 
+        }
+
+        /* Scrollbar Özelleştirme */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* PUAN ANİMASYONU */
+        .score-anim {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fbbf24; font-size: 3.5rem; font-weight: 900;
+            animation: popUp 0.8s forwards;
+            pointer-events: none; z-index: 50;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        @keyframes popUp {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(-50%, -150%) scale(1.5); opacity: 0; }
+        }
+
+        /* YAZDIRMA AYARLARI */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; color: black; }
+            .flip-card { 
+                break-inside: avoid; 
+                page-break-inside: avoid;
+                height: auto; 
+                min-height: 150px;
+                border: 1px solid #ccc; 
+                margin-bottom: 15px; 
+                perspective: none;
+            }
+            .flip-card-inner { transform: none !important; position: static; height: auto; display: block; }
+            .flip-card-front { display: none; }
+            .flip-card-back { 
+                position: static; 
+                transform: none !important; 
+                display: block !important; 
+                height: auto; 
+                border: none;
+                overflow: visible;
+            }
+            .card-content-scroll { overflow: visible; height: auto; padding: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto mb-8 no-print sticky top-0 z-50">
+        <div class="bg-slate-900/95 p-4 rounded-xl border border-slate-700 backdrop-blur-md shadow-2xl">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                        📚 ISO 30400:2022 Standardına Göre İnsan Kaynakları Yönetimi Sözlüğü
+                    </h1>
+                    <p class="text-sm text-slate-400 mt-1">Toplam <span id="totalCount" class="font-bold text-blue-400">0</span> Terim</p>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                    <div class="text-right">
+                        <div class="text-[10px] uppercase text-slate-400 font-bold tracking-wider">PUAN</div>
+                        <div class="text-2xl font-bold text-yellow-400 leading-none" id="score">0</div>
+                    </div>
+                    <div class="w-32 h-2.5 bg-slate-900 rounded-full border border-slate-700 overflow-hidden relative">
+                        <div id="progress" class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500 absolute top-0 left-0" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-col md:flex-row gap-4">
+                <div class="relative w-full md:w-1/3">
+                    <input type="text" id="search" placeholder="Terim veya kod ara (Örn: Yetenek)..." 
+                        class="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                    <svg class="absolute left-3 top-3 text-slate-400" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+                </div>
+                
+                <select id="categoryFilter" class="w-full md:w-1/3 bg-slate-800 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                    <option value="all">Tüm Bölümler</option>
+                    <option value="3.1">3.1 Organizasyonla İlgili</option>
+                    <option value="3.2">3.2 İK Planlama</option>
+                    <option value="3.3">3.3 Kişiler ve Organizasyonlar</option>
+                    <option value="3.4">3.4 İK Metrikleri</option>
+                    <option value="3.5">3.5 İnsan Yönetişimi</option>
+                    <option value="3.6">3.6 Sürdürülebilir İstihdam</option>
+                    <option value="3.7">3.7 Çeşitlilik ve Kapsayıcılık</option>
+                    <option value="3.8">3.8 İşgücü Planlama</option>
+                    <option value="3.9">3.9 İşe Alım</option>
+                    <option value="3.10">3.10 İşgücü Hareketliliği</option>
+                    <option value="3.11">3.11 Yetenek Yönetimi</option>
+                    <option value="3.12">3.12 Bilgi Yönetimi</option>
+                    <option value="3.13">3.13 İnsan Sermayesi Raporlama</option>
+                    <option value="3.14">3.14 Öğrenme ve Gelişim</option>
+                    <option value="3.15">3.15 Değerlendirme</option>
+                    <option value="3.16">3.16 Çalışan Bağlılığı</option>
+                    <option value="3.17">3.17 Ücretlendirme</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="grid" class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+        </div>
+
+    <script>
+        // --- DATA ---
+        const dictionary = [
+             // 3.1 Organizasyon
+            { code: "3.1.1", tr: "Organizasyon", en: "Organization", desc: "Hedeflerine ulaşmak için sorumlulukları, yetkileri ve ilişkileri olan, kendi işlevlerine sahip kişi veya insan grubu.", cat: "3.1" },
+            { code: "3.1.2", tr: "Kurumsal Yönetişim", en: "Organizational Governance", desc: "Bir organizasyonun hedeflerine ulaşmak amacıyla karar aldığı ve bu kararları uyguladığı sistem.", cat: "3.1" },
+            { code: "3.1.3", tr: "Kurum Kültürü", en: "Organizational Culture", desc: "İnsanların ve organizasyonların tutum ve davranışlarını etkileyen değerler, inançlar ve uygulamalar.", cat: "3.1" },
+            { code: "3.1.4", tr: "Organizasyon Yapısı", en: "Organization Structure", desc: "Bir organizasyondaki yetki, sorumluluk ve hesap verebilirlik düzenlemesi.", cat: "3.1" },
+            { code: "3.1.5", tr: "İş Modeli", en: "Business Model", desc: "Organizasyonun kendi çevresinde faaliyet gösterme yaklaşımı.", cat: "3.1" },
+            { code: "3.1.6", tr: "Strateji", en: "Strategy", desc: "Hedeflere ulaşma yaklaşımı.", cat: "3.1" },
+            { code: "3.1.7", tr: "İş Sürekliliği Planlaması", en: "Business Continuity Planning (BCP)", desc: "Organizasyonun kesintiye yanıt vermesine ve hizmetlerini sürdürmesine rehberlik eden dokümante edilmiş bilgi.", cat: "3.1" },
+            { code: "3.1.8", tr: "Planlama", en: "Planning", desc: "Yönetimin, hedefleri belirlemeye ve gerekli süreçleri ve kaynakları tanımlamaya odaklanan kısmı.", cat: "3.1" },
+            { code: "3.1.9", tr: "Stratejik Planlama", en: "Strategic Planning", desc: "Organizasyonun çıkarlarıyla ilgili faktörlerin formülasyonu, uygulanması ve değerlendirilmesini içeren planlama.", cat: "3.1" },
+            { code: "3.1.10", tr: "Sosyal Sorumluluk", en: "Social Responsibility", desc: "Organizasyonun kararlarının ve faaliyetlerinin toplum ve çevre üzerindeki etkilerine karşı sorumluluğu.", cat: "3.1" },
+            { code: "3.1.11", tr: "Yönetim", en: "Management", desc: "Bir organizasyonu yönetmek ve kontrol etmek için koordine edilmiş faaliyetler.", cat: "3.1" },
+            { code: "3.1.12", tr: "Üst Yönetim", en: "Top Management", desc: "Organizasyonu en üst düzeyde yöneten ve kontrol eden kişi veya insan grubu.", cat: "3.1" },
+            { code: "3.1.13", tr: "Performans Yönetimi", en: "Performance Management", desc: "Kişilerin, grupların ve organizasyonların performansının yönetimi.", cat: "3.1" },
+            { code: "3.1.14", tr: "Risk", en: "Risk", desc: "Belirsizliğin etkisi.", cat: "3.1" },
+            { code: "3.1.15", tr: "Politika", en: "Policy", desc: "Bir organizasyonun niyetleri ve yönü; üst yönetim tarafından resmi olarak ifade edilir.", cat: "3.1" },
+            { code: "3.1.16", tr: "Önemlilik", en: "Materiality", desc: "Bir unsurun organizasyonel sonuçlar için önem derecesinin ölçüsü.", cat: "3.1" },
+            { code: "3.1.17", tr: "Geribildirim", en: "Feedback", desc: "Kişilere, gruplara veya organizasyonlara performans veya faaliyetler hakkında sağlanan bilgi.", cat: "3.1" },
+            { code: "3.1.18", tr: "Kıyaslama", en: "Benchmarking", desc: "Organizasyonun performansını iyileştirmek amacıyla uygulamaları karşılaştırmak için kullandığı ölçüm ve analiz faaliyeti.", cat: "3.1" },
+            { code: "3.1.19", tr: "Gereksinim", en: "Requirement", desc: "Belirtilen, genellikle ima edilen veya zorunlu olan ihtiyaç veya beklenti.", cat: "3.1" },
+            { code: "3.1.20", tr: "Yönetim Sistemi", en: "Management System", desc: "Politika ve hedefleri oluşturmak ve bu hedeflere ulaşmak için organizasyonun birbiriyle ilişkili unsurları.", cat: "3.1" },
+            { code: "3.1.21", tr: "Etkililik", en: "Effectiveness", desc: "Planlanan faaliyetlerin gerçekleştirilme ve planlanan sonuçlara ulaşılma derecesi.", cat: "3.1" },
+            { code: "3.1.22", tr: "Hedef", en: "Objective", desc: "Ulaşılmak istenen sonuç.", cat: "3.1" },
+            { code: "3.1.23", tr: "Dokümante Edilmiş Bilgi", en: "Documented Information", desc: "Organizasyon tarafından kontrol edilmesi ve sürdürülmesi gereken bilgi ve bu bilginin bulunduğu ortam.", cat: "3.1" },
+            { code: "3.1.24", tr: "Süreç", en: "Process", desc: "Girdileri çıktılara dönüştüren birbiriyle ilişkili veya etkileşimli faaliyetler seti.", cat: "3.1" },
+            { code: "3.1.25", tr: "İzleme", en: "Monitoring", desc: "Bir sistemin, sürecin veya faaliyetin durumunu belirleme.", cat: "3.1" },
+            { code: "3.1.26", tr: "Ölçüm", en: "Measurement", desc: "Bir değeri belirleme süreci.", cat: "3.1" },
+            { code: "3.1.27", tr: "Uygunluk", en: "Conformity", desc: "Bir gereksinimin yerine getirilmesi.", cat: "3.1" },
+            { code: "3.1.28", tr: "Uygunsuzluk", en: "Nonconformity", desc: "Bir gereksinimin yerine getirilmemesi.", cat: "3.1" },
+            { code: "3.1.29", tr: "Düzeltme", en: "Correction", desc: "Tespit edilen bir uygunsuzluğu gidermek için yapılan eylem.", cat: "3.1" },
+            { code: "3.1.30", tr: "Düzeltici Faaliyet", en: "Corrective Action", desc: "Uygunsuzluğun nedenini ortadan kaldırmak ve tekrarını önlemek için yapılan eylem.", cat: "3.1" },
+            { code: "3.1.31", tr: "Sürekli İyileştirme", en: "Continual Improvement", desc: "Performansı artırmak için tekrarlanan faaliyet.", cat: "3.1" },
+            { code: "3.1.32", tr: "Bilgi", en: "Information", desc: "Anlam üretmek için işlenen, organize edilen ve ilişkilendirilen veriler.", cat: "3.1" },
+            { code: "3.1.33", tr: "Toplu Pazarlık", en: "Collective Bargaining", desc: "İşveren ve işçi örgütleri arasında karşılıklı ilgili konularda anlaşmaya varmayı amaçlayan görüşmeler.", cat: "3.1" },
+
+            // 3.2 İK Planlama
+            { code: "3.2.1", tr: "İnsan Sermayesi", en: "Human Capital", desc: "Bir organizasyonun insanlarının sahip olduğu kolektif bilgi, beceri ve yeteneklerin değeri.", cat: "3.2" },
+            { code: "3.2.2", tr: "İnsan Kaynakları", en: "Human Resources (HR)", desc: "Organizasyon içinde çalışan veya organizasyona katkıda bulunan insanlar.", cat: "3.2" },
+            { code: "3.2.3", tr: "Kapasite Yönetimi", en: "Capacity Management", desc: "Organizasyonel taahhütleri yerine getirmek için gerekli insan sermayesini yönetme süreci.", cat: "3.2" },
+            { code: "3.2.4", tr: "Kapasite Planı", en: "Capacity Plan", desc: "Belirli bir dönem için rol ve becerilere göre planlanan kaynak gereksinimlerinin görünümü.", cat: "3.2" },
+            { code: "3.2.5", tr: "İK Stratejisi", en: "HR Strategy", desc: "Organizasyonel strateji ile uyumlu politika, süreç ve uygulamaları hayata geçirme yaklaşımı.", cat: "3.2" },
+            { code: "3.2.6", tr: "İnsan Kaynakları Yönetimi", en: "HRM", desc: "Organizasyonlardaki insanların yönetimi.", cat: "3.2" },
+            { code: "3.2.7", tr: "Organizasyonel Değerler", en: "Organizational Values", desc: "Bir organizasyonun önemli saydığı ilham verici standartlar, davranışlar veya ilkeler.", cat: "3.2" },
+            { code: "3.2.8", tr: "İK Planlaması", en: "HR Planning (HRP)", desc: "Organizasyonun insan ihtiyacını öngörme, değerlendirme ve karşılama süreci.", cat: "3.2" },
+            { code: "3.2.9", tr: "İK Bilgi Sistemi", en: "HRIS", desc: "İnsan kaynakları yönetimini destekleyen bilgi sistemi.", cat: "3.2" },
+            { code: "3.2.10", tr: "İnsan Riski", en: "People Risk", desc: "İnsanların davranış ve faaliyetlerinin bir sonucu olarak ortaya çıkan olumsuz sonuçlarla ilgili risk.", cat: "3.2" },
+            { code: "3.2.11", tr: "Yedekleme Planlaması", en: "Succession Planning", desc: "Organizasyondaki kilit pozisyonları doldurma potansiyeli olan mevcut çalışanları belirleme ve geliştirme süreci.", cat: "3.2" },
+            { code: "3.2.12", tr: "Performans", en: "Performance", desc: "Ölçülebilir sonuç.", cat: "3.2" },
+            { code: "3.2.13", tr: "Temel Performans Göstergesi", en: "KPI", desc: "Organizasyondaki insanların kritik başarı faktörlerini gösteren niteliksel ve niceliksel ölçüm.", cat: "3.2" },
+
+            // 3.3 Kişiler
+            { code: "3.3.1", tr: "İlgili Taraf (Paydaş)", en: "Stakeholder", desc: "Bir kararı veya faaliyeti etkileyebilen veya ondan etkilenebilen kişi veya organizasyon.", cat: "3.3" },
+            { code: "3.3.2", tr: "İşbirliği", en: "Collaboration", desc: "İki veya daha fazla kişinin ortak bir amaç için birlikte çalışması.", cat: "3.3" },
+            { code: "3.3.3", tr: "Yetkinlik", en: "Competence", desc: "Amaçlanan sonuçlara ulaşmak için bilgi ve becerileri uygulama yeteneği.", cat: "3.3" },
+            { code: "3.3.4", tr: "Temel Yetkinlikler", en: "Core Competences", desc: "Bir organizasyonun başarısı için gerekli olan yetkinlikler.", cat: "3.3" },
+            { code: "3.3.5", tr: "Yetkinlik Modeli", en: "Competence Model", desc: "İnsanların bilgi, beceri ve yeteneklerini analiz etme ve tanımlama süreci.", cat: "3.3" },
+            { code: "3.3.6", tr: "Yetkinlik Çerçevesi", en: "Competence Framework", desc: "Bir organizasyon içindeki insanların yetkinliğini tanımlayan yapı.", cat: "3.3" },
+            { code: "3.3.7", tr: "Liderlik Yetkinlikleri", en: "Leadership Competences", desc: "İşyeri bağlamında liderler için gerekli yetkinlik seti.", cat: "3.3" },
+            { code: "3.3.8", tr: "İşyeri", en: "Workplace", desc: "Kişinin iş amacıyla bulunması gereken, organizasyonun kontrolü altındaki yer.", cat: "3.3" },
+            { code: "3.3.9", tr: "Kariyer", en: "Career", desc: "Bir kişinin çalışma hayatı boyunca işle ilgili deneyimleri.", cat: "3.3" },
+            { code: "3.3.10", tr: "Kariyer Aşaması", en: "Career Stage", desc: "Bir kişinin kariyerinin belirgin evresi.", cat: "3.3" },
+            { code: "3.3.11", tr: "Çalışan Referansı", en: "Employee Referral", desc: "Mevcut çalışanlar tarafından önerilen potansiyel çalışan.", cat: "3.3" },
+            { code: "3.3.12", tr: "Çalışan Temsilcisi", en: "Employee Representative", desc: "Organizasyonla etkileşimlerde işgücü adına hareket etmek üzere seçilen veya atanan kişi.", cat: "3.3" },
+
+            // 3.4 Metrikler
+            { code: "3.4.1", tr: "İşe Alım Başına Maliyet (İç)", en: "Cost-per-hire Internal (CPHI)", desc: "İşe alım ile ilgili organizasyona özgü maliyetler.", cat: "3.4" },
+            { code: "3.4.2", tr: "İşe Alım Başına Maliyet (Kıyaslanabilir)", en: "Cost-per-hire Comparable (CPHC)", desc: "Organizasyonlar arasında işe alımla ilgili maliyetleri belirlemek için kullanılan ölçüm.", cat: "3.4" },
+            { code: "3.4.3", tr: "İşe Alım Başına Maliyet", en: "Cost-per-hire (CPH)", desc: "İşe alımla ilişkili maliyetleri belirleyen ölçüm.", cat: "3.4" },
+            { code: "3.4.4", tr: "İşe Alım Maliyet Oranı", en: "Hire-Cost-Ratio (HCR)", desc: "İşe alım başına maliyetin yeni işe alınanların toplam tazminatına karşı karşılaştırılması.", cat: "3.4" },
+            { code: "3.4.5", tr: "İşe Alım Kalitesi", en: "Quality of Hire", desc: "Çalışanın işe alındıktan sonraki performansının işe alım öncesi beklentilere kıyasla ölçümü.", cat: "3.4" },
+            { code: "3.4.6", tr: "İşe Alım Etkisi", en: "Impact of Hire", desc: "Yeni işe alınan kişinin organizasyonun başarısına katkısının ölçümü.", cat: "3.4" },
+            { code: "3.4.7", tr: "Elde Tutma Oranı", en: "Retention Rate", desc: "Belirli bir dönemde elde tutulan toplam işgücü oranı.", cat: "3.4" },
+            { code: "3.4.8", tr: "İşten Ayrılma Oranı", en: "Turnover Rate", desc: "Belirli bir dönemde işten ayrılanların toplam işgücüne oranı.", cat: "3.4" },
+            { code: "3.4.9", tr: "Denetim", en: "Audit", desc: "Denetim kriterlerinin ne ölçüde karşılandığını belirlemek için kanıt elde etme ve objektif olarak değerlendirme süreci.", cat: "3.4" },
+            { code: "3.4.10", tr: "Veri Denetimi", en: "Data Audit", desc: "Bir metrik geliştirilirken verilerin kalite ve doğruluk açısından incelenmesi.", cat: "3.4" },
+            { code: "3.4.11", tr: "Dış Maliyet", en: "External Cost Factor", desc: "İşe alım sırasında dış satıcılara veya bireylere yapılan harcama.", cat: "3.4" },
+            { code: "3.4.12", tr: "İç Maliyet", en: "Internal Cost Factor", desc: "İşe alımın iç personel, sermaye ve organizasyonel maliyetleri.", cat: "3.4" },
+            { code: "3.4.13", tr: "Kayıt Sistemi", en: "System of Record", desc: "Belirli bir bilgi parçasının kaynağı olarak kabul edilen bilgi sistemi.", cat: "3.4" },
+            { code: "3.4.14", tr: "Derleyici", en: "Compiler", desc: "Bir metrik oluşturulmasından sorumlu birey.", cat: "3.4" },
+            { code: "3.4.15", tr: "İşe Alım Öncesi Beklentiler", en: "Pre-hire Expectations", desc: "Yeni işe alınanların başarısını belirlemek için işe alımdan önce belirlenen minimum kabul edilebilir performans kriterleri.", cat: "3.4" },
+            { code: "3.4.16", tr: "Tam Zamanlı Eşdeğer", en: "FTE", desc: "Tüm çalışanların çalıştığı toplam saati tamamlamak için gereken tam zamanlı çalışan sayısı.", cat: "3.4" },
+            { code: "3.4.17", tr: "Kritik Pozisyon", en: "Critical Position", desc: "Organizasyonel sonuçlar üzerinde doğrudan ve önemli etkisi olan iş rolü.", cat: "3.4" },
+            { code: "3.4.18", tr: "İş Değeri", en: "Business Value", desc: "Organizasyon, alt grup veya iş birimi tarafından üretilen değerin ölçümü.", cat: "3.4" },
+
+            // 3.5 Yönetişim
+            { code: "3.5.1", tr: "İnsan Yönetişimi", en: "Human Governance", desc: "Organizasyonun, paydaşları ve insani faktörleri dikkate alarak yönetildiği ve kontrol edildiği sistem.", cat: "3.5" },
+
+            // 3.6 Sürdürülebilirlik
+            { code: "3.6.1", tr: "Sürdürülebilir İstihdam", en: "Sustainable Employability", desc: "İş edinme veya yaratma ve işi sürdürme konusundaki uzun vadeli kapasite.", cat: "3.6" },
+            { code: "3.6.2", tr: "Birey İçin Sürdürülebilir İstihdam", en: "Sustainable Employability for Individual", desc: "Değişen koşullara uyum sağlayarak istihdamı sürdürme yeteneği.", cat: "3.6" },
+            { code: "3.6.3", tr: "Organizasyon İçin Sürdürülebilir İstihdam", en: "Sustainable Employability for Organization", desc: "İşgücünü değişen gereksinimlere göre elde tutma ve geliştirme yaklaşımı.", cat: "3.6" },
+            { code: "3.6.4", tr: "Kamu Sektörü İçin Sürdürülebilir İstihdam", en: "Sustainable Employability for Public Sector", desc: "Değer odaklı istihdamı desteklemek için uzun vadeli yaklaşımlar.", cat: "3.6" },
+
+            // 3.7 Çeşitlilik
+            { code: "3.7.1", tr: "Çeşitlilik", en: "Diversity", desc: "İnsanlar arasındaki farklılıkların ve benzerliklerin özellikleri.", cat: "3.7" },
+            { code: "3.7.2", tr: "Önyargı", en: "Bias", desc: "Tarafsız yargılamayı engelleyen eğilim veya görüş.", cat: "3.7" },
+            { code: "3.7.3", tr: "Kapsayıcılık", en: "Inclusion", desc: "Paydaşları dahil etme uygulaması.", cat: "3.7" },
+            { code: "3.7.4", tr: "Kapsayıcı Kültür", en: "Inclusive Culture", desc: "En geniş paydaş yelpazesinin katkılarını değerli gören değerler ve uygulamalar.", cat: "3.7" },
+            { code: "3.7.5", tr: "Kapsayıcı Davranış", en: "Inclusive Behaviour", desc: "Kapsayıcılığı teşvik eden tutum.", cat: "3.7" },
+            { code: "3.7.6", tr: "Erişilebilirlik", en: "Accessibility", desc: "İşyeri ortamlarının ve sistemlerinin en geniş insan yelpazesi tarafından kullanılabilir olma derecesi.", cat: "3.7" },
+            { code: "3.7.7", tr: "Uyum Sağlama", en: "Accommodate", desc: "Uyum sağlama veya ayarlama; farklı yeteneklere sahip insanların erişim sağlamasına izin verme.", cat: "3.7" },
+            { code: "3.7.8", tr: "Hesap Verebilirlik", en: "Accountability", desc: "Bir sorumluluğun yerine getirilmesi için başkasına karşı yükümlülük.", cat: "3.7" },
+            { code: "3.7.9", tr: "Olumsuz Etki", en: "Adverse Impact", desc: "Bireyler veya gruplar için dezavantajlı ve potansiyel olarak ayrımcı sonuç.", cat: "3.7" },
+            { code: "3.7.10", tr: "İnsana Yakışır İş", en: "Decent Work", desc: "Özgürlük, eşitlik, güvenlik ve insan onuru koşullarında yapılan iş.", cat: "3.7" },
+            { code: "3.7.11", tr: "Çalışan Kaynak Grubu", en: "ERG", desc: "Ortak çeşitlilik boyutlarına sahip insanların oluşturduğu grup.", cat: "3.7" },
+            { code: "3.7.12", tr: "Eşitlik", en: "Equality", desc: "Statü, haklar veya fırsatlarda eşit olma durumu.", cat: "3.7" },
+            { code: "3.7.13", tr: "Hakkaniyet", en: "Equity", desc: "Politikaların ve süreçlerin adil bir şekilde uygulanması ve bireysel ihtiyaçların tanınması ilkesi.", cat: "3.7" },
+            { code: "3.7.14", tr: "Adalet", en: "Fairness", desc: "Herkesin sistematik önyargıdan arınmış politikalara tabi olması ilkesi.", cat: "3.7" },
+            { code: "3.7.15", tr: "Kesişimsellik", en: "Intersectionality", desc: "Bir kişinin kimliğinin parçası olan çeşitlilik boyutlarının kombinasyonu.", cat: "3.7" },
+            { code: "3.7.16", tr: "Erişim Faaliyetleri", en: "Outreach", desc: "Daha geniş bir paydaş grubuyla etkileşim kurmak için üstlenilen faaliyetler.", cat: "3.7" },
+            { code: "3.7.17", tr: "Ses", en: "Voice", desc: "İnsanların görüşlerini iletme ve kendilerini etkileyen konuları etkileme yolu.", cat: "3.7" },
+
+            // 3.8 İşgücü
+            { code: "3.8.1", tr: "İşgücü", en: "Workforce", desc: "İş veya organizasyonel sonuçlara katkıda bulunmak için hizmet veya emek sağlayan insanlar.", cat: "3.8" },
+            { code: "3.8.2", tr: "İşgücü Planlama", en: "Workforce Planning", desc: "Organizasyonel ihtiyaçların insan açısından sistematik analizi ve planlanması.", cat: "3.8" },
+            { code: "3.8.3", tr: "Stratejik İşgücü Planlama", en: "Strategic Workforce Planning", desc: "Organizasyonel strateji ile uyumlu, belirli bir dönemi kapsayan işgücü planlaması.", cat: "3.8" },
+            { code: "3.8.4", tr: "Operasyonel İşgücü Planlama", en: "Operational Workforce Planning", desc: "Kısa vadeli planlama döngüsüyle uyumlu işgücü planlaması.", cat: "3.8" },
+            { code: "3.8.5", tr: "İşgücü Tahsisi", en: "Workforce Allocation", desc: "Tahsis kararlarını hazırlama, atama ve bildirme süreci.", cat: "3.8" },
+            { code: "3.8.6", tr: "Tahsis Kararı", en: "Allocation Decision", desc: "Hangi işçinin hangi işe atanacağının belirlenmesi.", cat: "3.8" },
+            { code: "3.8.7", tr: "Tahsis Ufku", en: "Allocation Horizon", desc: "Tahsis kararının verildiği işin başlamasından önceki dönem.", cat: "3.8" },
+            { code: "3.8.8", tr: "Tahsis Aşaması", en: "Allocation Stage", desc: "Tahsis kararları etrafında alınan hazırlık adımları.", cat: "3.8" },
+
+            // 3.9 İşe Alım
+            { code: "3.9.1", tr: "İşe Alım", en: "Recruitment", desc: "Yeteneği bulma, cezbetme, değerlendirme ve istihdam etme süreci.", cat: "3.9" },
+            { code: "3.9.2", tr: "Talep", en: "Requisition", desc: "Bir pozisyon için işe alım yapılmasına dair resmi istek.", cat: "3.9" },
+            { code: "3.9.3", tr: "Kaynak Bulma", en: "Source", desc: "Potansiyel başvuru kanallarını belirleme ve geliştirme.", cat: "3.9" },
+            { code: "3.9.4", tr: "Cezbetme", en: "Attract", desc: "Potansiyel adaylardan ilgi oluşturma.", cat: "3.9" },
+            { code: "3.9.5", tr: "Başvuru Havuzu", en: "Applicant Pool", desc: "Belirli bir işe resmen başvurmuş kişiler.", cat: "3.9" },
+            { code: "3.9.6", tr: "Başvuran", en: "Applicant", desc: "Bir işle ilgilenen ve başvuran kişi.", cat: "3.9" },
+            { code: "3.9.7", tr: "Aday", en: "Candidate", desc: "Bir iş için değerlendirilmekte olan kişi.", cat: "3.9" },
+            { code: "3.9.8", tr: "Kişi Özellikleri", en: "Person Specification", desc: "İşi yapmak için gereken bilgi, beceri ve yetenekler.", cat: "3.9" },
+            { code: "3.9.9", tr: "İş Tanımı", en: "Job Description", desc: "Bir pozisyonun görev, işlev ve sorumluluklarının listesi.", cat: "3.9" },
+            { code: "3.9.10", tr: "İşe Başlama Öncesi", en: "Pre-boarding", desc: "Teklifin kabul edilmesinden işe başlama gününe kadar olan aktiviteler.", cat: "3.9" },
+            { code: "3.9.11", tr: "İşe Uyum", en: "Onboarding", desc: "İnsanları organizasyona, kültürüne ve rollerine alıştırma süreci.", cat: "3.9" },
+            { code: "3.9.12", tr: "İstihdam Etmek", en: "Employ", desc: "Bir kişinin hizmetlerini almak veya kişiyi çalıştırmak.", cat: "3.9" },
+            { code: "3.9.13", tr: "İşveren Markası", en: "Employer Brand", desc: "Organizasyonun işveren olarak itibarı ve ayırt edici özellikleri.", cat: "3.9" },
+            { code: "3.9.14", tr: "Aday Deneyimi", en: "Candidate Experience", desc: "İşe alım sürecindeki etkileşimlerden doğan organizasyon hakkındaki algılar.", cat: "3.9" },
+
+            // 3.10 Hareketlilik
+            { code: "3.10.1", tr: "İşgücü Hareketliliği", en: "Workforce Mobility", desc: "İnsanların ve/veya işin yer değiştirmesi.", cat: "3.10" },
+            { code: "3.10.2", tr: "Dış Kaynak Kullanımı", en: "Outsource", desc: "Organizasyonun bir işlevini harici bir organizasyona yaptırması.", cat: "3.10" },
+            { code: "3.10.3", tr: "İş Değerleme", en: "Job Evaluation", desc: "Bir pozisyonun organizasyon içindeki değerini belirleme süreci.", cat: "3.10" },
+
+            // 3.11 Yetenek
+            { code: "3.11.1", tr: "Yetenek", en: "Talent", desc: "Bir rolü yerine getirmek için gereken özelliklere sahip kişi.", cat: "3.11" },
+            { code: "3.11.2", tr: "Yetenek Haritalama", en: "Talent Mapping", desc: "Bireylerin veya ekiplerin bilgi ve becerilerini temsil etme.", cat: "3.11" },
+            { code: "3.11.3", tr: "Yetenek Hattı", en: "Talent Pipeline", desc: "Gelecekteki fırsatlar için değerlendirilebilecek nitelikli adaylar.", cat: "3.11" },
+            { code: "3.11.4", tr: "Yetenek Havuzu", en: "Talent Pool", desc: "Değerli özelliklere sahip geniş insan grubu.", cat: "3.11" },
+            { code: "3.11.5", tr: "Yetenek Yönetimi", en: "Talent Management", desc: "Özel becerilere sahip insanları cezbetmek, geliştirmek ve elde tutmak için entegre stratejilerin uygulanması.", cat: "3.11" },
+            { code: "3.11.6", tr: "Yüksek Potansiyelliler", en: "High Potentials", desc: "Olağanüstü performans gösterme eğilimi olan kişiler.", cat: "3.11" },
+
+            // 3.12 Bilgi
+            { code: "3.12.1", tr: "Bilgi", en: "Knowledge", desc: "Etkili karar ve eylemi mümkün kılan insani veya organizasyonel varlık.", cat: "3.12" },
+            { code: "3.12.2", tr: "Bilgi Yönetimi", en: "Knowledge Management", desc: "Organizasyonel performansı artıran bilgi odaklı uygulamalar seti.", cat: "3.12" },
+            { code: "3.12.3", tr: "Bilgi Yönetimi Kültürü", en: "KM Culture", desc: "Bilgi yönetimi faaliyetlerini destekleyen organizasyonel kültür unsurları.", cat: "3.12" },
+            { code: "3.12.4", tr: "Bilgi Yönetim Sistemi", en: "KMS", desc: "Yönetim sisteminin bilgi ile ilgili kısmı.", cat: "3.12" },
+            { code: "3.12.5", tr: "Eylem Öncesi İnceleme", en: "Before Action Review (BAR)", desc: "Bir görevden önce riskleri ve fırsatları belirleme yöntemi.", cat: "3.12" },
+            { code: "3.12.6", tr: "Kodlanmış Bilgi", en: "Codified Knowledge", desc: "Semboller kullanılarak temsil edilen (yazılı hale getirilmiş) bilgi.", cat: "3.12" },
+            { code: "3.12.7", tr: "Uygulama Topluluğu", en: "Community of Practice", desc: "Belirli bir alanda bilgi paylaşan ve yaratan insan ağı.", cat: "3.12" },
+            { code: "3.12.8", tr: "Kritik Bilgi", en: "Critical Knowledge", desc: "Organizasyonel performans üzerinde çok önemli etkisi olan bilgi.", cat: "3.12" },
+            { code: "3.12.9", tr: "Bilgi Kafesi", en: "Knowledge Café", desc: "Ortak bir konuda içgörü oluşturan yapılandırılmış sosyal etkileşim yöntemi.", cat: "3.12" },
+            { code: "3.12.10", tr: "Bilgi Yaratma", en: "Knowledge Creation", desc: "Daha önce mevcut olmayan bilginin üretilmesi.", cat: "3.12" },
+            { code: "3.12.11", tr: "Bilgi İşi", en: "Knowledge Work", desc: "Bilginin önemli olduğu görev veya etkinlik.", cat: "3.12" },
+            { code: "3.12.12", tr: "Çıkarılan Dersler", en: "Lessons Learned", desc: "Öğrenme veya deneyim sonucunda davranışlardaki değişiklikler.", cat: "3.12" },
+
+            // 3.13 Raporlama
+            { code: "3.13.1", tr: "Çalışan", en: "Employee", desc: "Ulusal yasalara göre organizasyon tarafından istihdam edilen birey.", cat: "3.13" },
+            { code: "3.13.2", tr: "Gözetim Altındaki Çalışan", en: "Supervised Worker", desc: "Düzenli çalışan ancak çalışan statüsünde olmayan birey.", cat: "3.13" },
+            { code: "3.13.3", tr: "Bağımsız Yüklenici", en: "Independent Contractor", desc: "Organizasyon için çalışan, ilişkisi bir anlaşma ile belirlenen kişi veya kuruluş.", cat: "3.13" },
+            { code: "3.13.4", tr: "İşçi/Çalışan (Genel)", en: "Worker", desc: "Organizasyon adına iş yapan, çalışan veya sözleşmeli kişi.", cat: "3.13" },
+            { code: "3.13.5", tr: "Geçici Çalışan", en: "Contingent Worker", desc: "Değişen koşulları karşılamak için geçici veya esnek çalışan birey.", cat: "3.13" },
+
+            // 3.14 Öğrenme
+            { code: "3.14.1", tr: "Yetenek (Doğal)", en: "Ability", desc: "Yapabilme insani niteliği.", cat: "3.14" },
+            { code: "3.14.2", tr: "Davranış", en: "Behaviour", desc: "İnsanlar ve organizasyonun diğer unsurları arasındaki etkileşim.", cat: "3.14" },
+            { code: "3.14.3", tr: "Kabiliyet", en: "Capability", desc: "İstenen bir sonuca ulaşma yeteneği.", cat: "3.14" },
+            { code: "3.14.4", tr: "Koçluk", en: "Coaching", desc: "Performansı artırmak için uzman eğitimi veya desteği.", cat: "3.14" },
+            { code: "3.14.5", tr: "Gelişim", en: "Development", desc: "Performans eşiğini yükseltmek için yapılan öğrenme faaliyetleri.", cat: "3.14" },
+            { code: "3.14.6", tr: "Eğitim (Akademik)", en: "Education", desc: "Bilginin aktarıldığı veya elde edildiği süreç.", cat: "3.14" },
+            { code: "3.14.7", tr: "Değerlendirme (Eğitim)", en: "Evaluation", desc: "Öğrenme ve gelişimin kalitesini ve etkisini belirleme süreci.", cat: "3.14" },
+            { code: "3.14.8", tr: "Kolaylaştırıcı", en: "Facilitator", desc: "Öğrenme sürecini destekleyen kişi.", cat: "3.14" },
+            { code: "3.14.9", tr: "Öğrenme", en: "Learning", desc: "Bireylerin ve organizasyonların performansını iyileştirmeye odaklanan faaliyetler.", cat: "3.14" },
+            { code: "3.14.10", tr: "Öğrenme Çıktısı", en: "Learner Outcome", desc: "Öğrenme sonunda kişinin bilmesi veya yapabilmesi beklenen şey.", cat: "3.14" },
+            { code: "3.14.11", tr: "Mentorluk", en: "Mentoring", desc: "Deneyimli bir kişinin bilgi ve uzmanlığını paylaşarak başkalarının gelişimini desteklemesi.", cat: "3.14" },
+            { code: "3.14.12", tr: "Beceri", en: "Skill", desc: "Bir görevi belirtilen beklentiye göre yerine getirme kapasitesi.", cat: "3.14" },
+            { code: "3.14.13", tr: "Eğitim (İş)", en: "Training", desc: "Bilgi, beceri ve yetenek elde etme süreci.", cat: "3.14" },
+            { code: "3.14.14", tr: "Öğrenme Ortamı", en: "Learning Environment", desc: "Öğreneni destekleyen fiziksel veya sanal ortam.", cat: "3.14" },
+
+            // 3.15 Değerlendirme
+            { code: "3.15.1", tr: "Anlaşma", en: "Agreement", desc: "Müşteri ve hizmet sağlayıcı arasındaki şartların belirtilmesi.", cat: "3.15" },
+            { code: "3.15.2", tr: "Değerlendirmek", en: "Assess", desc: "İşle ilgili özellikleri tespit etmek veya ölçmek.", cat: "3.15" },
+            { code: "3.15.3", tr: "Değerlendirme", en: "Assessment", desc: "İşle ilgili özellikleri veya performansı ölçmek için sistematik yöntem.", cat: "3.15" },
+            { code: "3.15.4", tr: "Değerlendirme Yöneticisi", en: "Assessment Administrator", desc: "Değerlendirmelerin idaresinden sorumlu kişi.", cat: "3.15" },
+            { code: "3.15.5", tr: "Değerlendirme Katılımcısı", en: "Assessment Participant", desc: "Değerlendirilen birey.", cat: "3.15" },
+            { code: "3.15.6", tr: "Değerlendirici", en: "Assessor", desc: "Katılımcının performansını yorumlamaktan sorumlu kişi veya organizasyon.", cat: "3.15" },
+            { code: "3.15.7", tr: "Müşteri", en: "Client", desc: "Değerlendirme hizmeti için anlaşan kişi veya organizasyon.", cat: "3.15" },
+            { code: "3.15.8", tr: "Yeterlilik Belgesi", en: "Credential", desc: "Yetkinlik seviyesini gösteren lisans, sertifika veya diploma.", cat: "3.15" },
+            { code: "3.15.9", tr: "Kriterler", en: "Criteria", desc: "Değerlendirme sonuçlarının faydasını yargılamak için kullanılan önlemler.", cat: "3.15" },
+            { code: "3.15.10", tr: "Veri Sorumlusu", en: "Data Controller", desc: "Kişisel verilerin nasıl işleneceğini belirleyen kişi.", cat: "3.15" },
+            { code: "3.15.11", tr: "Veri İşleyen", en: "Data Processor", desc: "Veri sorumlusu adına verileri işleyen kişi.", cat: "3.15" },
+            { code: "3.15.12", tr: "Son Kullanıcı", en: "End User", desc: "Değerlendirme sonuçlarını karar vermek için kullanan kişi.", cat: "3.15" },
+            { code: "3.15.13", tr: "Kanıta Dayalı", en: "Evidence-based", desc: "Sistematik veri ve araştırma incelemesine dayanan yaklaşım.", cat: "3.15" },
+            { code: "3.15.14", tr: "Bilgilendirilmiş Onam", en: "Informed Consent", desc: "Katılımcıdan değerlendirmeye katılması için bilgi vererek anlaşma alma süreci.", cat: "3.15" },
+            { code: "3.15.15", tr: "Norm", en: "Norm", desc: "Puanların belirli bir popülasyona göre dönüştürülmesini sağlayan bilgi.", cat: "3.15" },
+            { code: "3.15.16", tr: "Kişisel Veri", en: "Personal Data", desc: "Tanımlanmış veya tanımlanabilir bir bireyle ilgili veriler.", cat: "3.15" },
+            { code: "3.15.17", tr: "Değerlendirme Sonrası İnceleme", en: "Post-assessment Review", desc: "Değerlendirmenin hedefleri karşılayıp karşılamadığını değerlendirme prosedürü.", cat: "3.15" },
+            { code: "3.15.18", tr: "Profesyonellik", en: "Professionalism", desc: "Etik kurallara ve yetkinlik sınırlarına uygun davranma.", cat: "3.15" },
+            { code: "3.15.19", tr: "Güvenilirlik", en: "Reliability", desc: "Ölçüm hatasından arınmışlık derecesi; tutarlılık.", cat: "3.15" },
+            { code: "3.15.20", tr: "Rapor", en: "Report", desc: "Değerlendirme sonucunun yorumunu içeren yazılı belge.", cat: "3.15" },
+            { code: "3.15.21", tr: "Gereksinim Analizi", en: "Requirements Analysis", desc: "Değerlendirme ihtiyacını anlamak için sistematik süreç.", cat: "3.15" },
+            { code: "3.15.22", tr: "Güvenlik", en: "Security", desc: "Değerlendirme materyallerine erişimi sınırlama ve kontrol etme.", cat: "3.15" },
+            { code: "3.15.23", tr: "Hizmet Sağlayıcı", en: "Service Provider", desc: "Değerlendirme hizmetleri sunan kişi veya organizasyon.", cat: "3.15" },
+            { code: "3.15.24", tr: "Standardize Edilmiş", en: "Standardized", desc: "Prosedürlerin tüm katılımcılar için karşılaştırılabilir olması.", cat: "3.15" },
+            { code: "3.15.25", tr: "Fayda", en: "Utility", desc: "Maliyet ve faydalar dikkate alındığında değerlendirmenin müşteriye değeri.", cat: "3.15" },
+            { code: "3.15.26", tr: "Geçerlilik", en: "Validity", desc: "Değerlendirme puanlarının yorumlanmasının amaca uygun olma derecesi.", cat: "3.15" },
+
+            // 3.16 Bağlılık
+             { code: "3.16.1", tr: "Sosyal Diyalog", en: "Social Dialogue", desc: "Hükümet, işveren ve çalışan temsilcileri arasında ekonomik ve sosyal politikaya ilişkin müzakere.", cat: "3.16" },
+
+            // 3.17 Ücret
+            { code: "3.17.1", tr: "Ücret/Tazminat", en: "Compensation", desc: "Sunulan hizmetler karşılığında verilen değer.", cat: "3.17" },
+            { code: "3.17.2", tr: "Toplam Ücret", en: "Total Compensation", desc: "Alınan tüm doğrudan veya dolaylı ücretler.", cat: "3.17" },
+            { code: "3.17.3", tr: "Yerelleştirme Ücret Stratejisi", en: "Localization Compensation Strategy", desc: "Uluslararası çalışana yerel çalışanlarla aynı seviyede ücret sağlama yaklaşımı.", cat: "3.17" }
+        ];
+
+        // --- RENK PALETİ ---
+        const categoryColors = {
+            "3.1": "bg-slate-700", "3.2": "bg-blue-700", "3.3": "bg-indigo-700",
+            "3.4": "bg-purple-700", "3.5": "bg-pink-700", "3.6": "bg-rose-700",
+            "3.7": "bg-orange-700", "3.8": "bg-amber-700", "3.9": "bg-yellow-700",
+            "3.10": "bg-lime-700", "3.11": "bg-green-700", "3.12": "bg-emerald-700",
+            "3.13": "bg-teal-700", "3.14": "bg-cyan-700", "3.15": "bg-sky-700",
+            "3.16": "bg-fuchsia-700", "3.17": "bg-violet-700"
+        };
+
+        // --- UYGULAMA MANTIĞI ---
+        let score = 0;
+        let readCards = new Set();
+        const grid = document.getElementById('grid');
+        const scoreEl = document.getElementById('score');
+        const searchInput = document.getElementById('search');
+        const catFilter = document.getElementById('categoryFilter');
+        const progressEl = document.getElementById('progress');
+        const totalCountEl = document.getElementById('totalCount');
+
+        function init() {
+            totalCountEl.innerText = dictionary.length;
+            renderCards();
+
+            searchInput.addEventListener('input', renderCards);
+            catFilter.addEventListener('change', renderCards);
+        }
+
+        function renderCards() {
+            const term = searchInput.value.toLowerCase();
+            const cat = catFilter.value;
+            
+            grid.innerHTML = '';
+
+            const filtered = dictionary.filter(item => {
+                const matchSearch = item.tr.toLowerCase().includes(term) || 
+                                    item.code.toLowerCase().includes(term) ||
+                                    item.en.toLowerCase().includes(term);
+                const matchCat = cat === 'all' || item.cat === cat;
+                return matchSearch && matchCat;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center text-slate-500 py-10 text-lg">Aradığınız kriterlere uygun terim bulunamadı.</div>';
+                return;
+            }
+
+            filtered.forEach(item => {
+                const colorClass = categoryColors[item.cat] || "bg-gray-700";
+                const isRead = readCards.has(item.code);
+                
+                const card = document.createElement('div');
+                card.className = `flip-card group ${isRead ? 'flipped' : ''}`;
+                card.onclick = (e) => flipCard(card, item.code);
+
+                card.innerHTML = `
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front ${colorClass} p-6 flex flex-col justify-between relative">
+                            ${isRead ? '<div class="absolute top-3 right-3 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg border-2 border-white/20">✓</div>' : ''}
+                            <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDIwIDIwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMC41Ij48cGF0aCBkPSJNMCAwaDIwdjIwSDB6IiBmaWxsPSJub25lIi8+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiLz48L3N2Zz4=')]"></div>
+                            
+                            <div class="z-10 flex justify-between items-start">
+                                <span class="bg-black/30 backdrop-blur-md text-xs font-mono px-3 py-1 rounded-full border border-white/30 shadow-sm">${item.code}</span>
+                            </div>
+                            
+                            <div class="z-10 text-center my-auto">
+                                <h3 class="text-2xl font-bold mb-2 leading-tight drop-shadow-md">${item.tr}</h3>
+                                <p class="text-sm font-medium italic opacity-90 text-blue-100">(${item.en})</p>
+                            </div>
+
+                            <div class="z-10 text-center mt-4">
+                                <span class="text-xs uppercase tracking-widest bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-full font-bold shadow-sm inline-flex items-center gap-2">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    Çevir
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flip-card-back">
+                            <div class="p-4 border-b border-slate-300 bg-slate-50 shrink-0">
+                                <h4 class="font-bold text-lg text-slate-800 leading-tight">${item.tr}</h4>
+                            </div>
+                            
+                            <div class="card-content-scroll custom-scroll">
+                                <p class="text-slate-600 text-base leading-relaxed">${item.desc}</p>
+                            </div>
+
+                            <div class="p-3 text-center border-t border-slate-200 bg-slate-50 shrink-0">
+                                <span class="text-xs text-slate-400 font-bold uppercase tracking-wider hover:text-slate-600 transition">Kapatmak için tıkla</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function flipCard(card, code) {
+            card.classList.toggle('flipped');
+
+            if (card.classList.contains('flipped') && !readCards.has(code)) {
+                readCards.add(code);
+                score += 5;
+                
+                scoreEl.innerText = score;
+                scoreEl.classList.add('text-green-400', 'scale-125');
+                setTimeout(() => scoreEl.classList.remove('text-green-400', 'scale-125'), 300);
+
+                const anim = document.createElement('div');
+                anim.className = 'score-anim';
+                anim.innerText = '+5';
+                card.appendChild(anim);
+                setTimeout(() => anim.remove(), 800);
+
+                const front = card.querySelector('.flip-card-front');
+                if(!front.querySelector('.bg-green-500')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'absolute top-3 right-3 bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg border-2 border-white/20 scale-0 transition-transform duration-300';
+                    badge.innerText = '✓';
+                    front.appendChild(badge);
+                    setTimeout(() => badge.classList.remove('scale-0'), 100);
+                }
+
+                const pct = (readCards.size / dictionary.length) * 100;
+                progressEl.style.width = `${pct}%`;
+
+                if(readCards.size === dictionary.length) {
+                    setTimeout(() => alert('🎉 TEBRİKLER! Tüm sözlüğü tamamladınız!'), 500);
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
