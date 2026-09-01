@@ -1,1 +1,1 @@
-suacalis.github.io/iky_sozlugu adresinden ulaşabilirisiniz
+https://suacalis.github.io/iky_sozlugu/ adresinden ulaşabilirsiniz
